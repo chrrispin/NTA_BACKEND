@@ -1,84 +1,127 @@
 // controllers/articleController.js
 const connection = require('../models/db');
 
-// Get all articles with optional filtering
+// Get all articles with pagination, filtering, and metadata
 exports.getAllArticles = async (req, res) => {
   try {
     console.log('📝 GET ALL ARTICLES REQUEST RECEIVED');
-    const { section, page, limit = 50, offset = 0 } = req.query;
+    
+    // Parse and validate query parameters
+    let page = parseInt(req.query.page);
+    let limit = parseInt(req.query.limit);
+    const section = req.query.section;
 
-    // Build query based on filters
-    let query = 'SELECT * FROM articles';
+    // Validate page
+    if (isNaN(page) || page < 1) {
+      page = 1;
+    }
+
+    // Validate limit
+    if (isNaN(limit) || limit < 1) {
+      limit = 10;
+    }
+    if (limit > 100) {
+      limit = 100; // Cap at 100
+    }
+
+    // Calculate offset
+    const offset = (page - 1) * limit;
+
+    // Build WHERE clause for filtering
+    let whereClause = '';
     const params = [];
 
-    const conditions = [];
     if (section) {
-      conditions.push('section = ?');
+      whereClause = 'WHERE section = ?';
       params.push(section);
     }
-    if (page) {
-      conditions.push('page = ?');
-      params.push(page);
-    }
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
 
-    // Add pagination
-    query += ` ORDER BY is_live DESC, created_at DESC LIMIT ? OFFSET ?`;
-    params.push(parseInt(limit), parseInt(offset));
+    console.log('🔍 Params:', { page, limit, offset, section });
 
-    console.log('🔍 Executing query:', query);
-    console.log('📦 With params:', params);
+    // First query: Get total count with same filters
+    const countQuery = `SELECT COUNT(*) as total FROM articles ${whereClause}`;
+    const countParams = params.slice();
 
-    // Execute query
-    connection.query(query, params, (error, results) => {
-      if (error) {
-        console.error('❌ DATABASE QUERY ERROR:', error.code, error.message);
-        return res.status(500).json({ 
-          error: 'Failed to fetch articles',
-          message: error.message,
-          code: error.code
+    connection.query(countQuery, countParams, (countError, countResults) => {
+      if (countError) {
+        console.error('❌ COUNT QUERY ERROR:', countError.code, countError.message);
+        return res.status(500).json({
+          error: 'Failed to fetch articles count',
+          message: countError.message,
+          code: countError.code
         });
       }
-      
-      console.log('✅ Query successful, returned', results.length, 'articles');
 
-      // Map database results to API response format with safe JSON parse for subLinks
-      const articles = results.map(article => {
-        let parsedSubLinks = [];
-        if (article.subLinks && typeof article.subLinks === 'string') {
-          try {
-            const trimmed = article.subLinks.trim();
-            if (trimmed) {
-              parsedSubLinks = JSON.parse(trimmed);
-            }
-          } catch (e) {
-            console.warn('⚠️ subLinks JSON parse failed for article id', article.id, '->', e.message);
-            parsedSubLinks = [];
-          }
+      const totalItems = countResults[0]?.total || 0;
+      const totalPages = Math.ceil(totalItems / limit);
+
+      console.log('✅ Total items:', totalItems, 'Total pages:', totalPages);
+
+      // Second query: Get paginated results
+      let dataQuery = `SELECT * FROM articles ${whereClause} ORDER BY is_live DESC, created_at DESC LIMIT ? OFFSET ?`;
+      const dataParams = [...params, limit, offset];
+
+      console.log('🔍 Executing data query:', dataQuery);
+      console.log('📦 With params:', dataParams);
+
+      connection.query(dataQuery, dataParams, (error, results) => {
+        if (error) {
+          console.error('❌ DATA QUERY ERROR:', error.code, error.message);
+          return res.status(500).json({
+            error: 'Failed to fetch articles',
+            message: error.message,
+            code: error.code
+          });
         }
 
-        return {
-          id: article.id,
-          section: article.section,
-          title: article.title,
-          slug: article.slug,
-          image_url: article.image_url,
-          summary: article.summary,
-          is_live: article.is_live,
-          page: article.page,
-          subLinks: parsedSubLinks
-        };
-      });
+        console.log('✅ Query successful, returned', results.length, 'articles');
 
-      res.json(articles);
+        // Map database results to API response format with safe JSON parse for subLinks
+        const articles = results.map(article => {
+          let parsedSubLinks = [];
+          if (article.subLinks && typeof article.subLinks === 'string') {
+            try {
+              const trimmed = article.subLinks.trim();
+              if (trimmed) {
+                parsedSubLinks = JSON.parse(trimmed);
+              }
+            } catch (e) {
+              console.warn('⚠️ subLinks JSON parse failed for article id', article.id, '->', e.message);
+              parsedSubLinks = [];
+            }
+          }
+
+          return {
+            id: article.id,
+            section: article.section,
+            title: article.title,
+            slug: article.slug,
+            image_url: article.image_url,
+            summary: article.summary,
+            is_live: article.is_live,
+            page: article.page,
+            isAudioPick: article.isAudioPick || false,
+            isHot: article.isHot || false,
+            subLinks: parsedSubLinks
+          };
+        });
+
+        // Return response with metadata
+        res.json({
+          articles: articles,
+          page: page,
+          limit: limit,
+          totalItems: totalItems,
+          totalPages: totalPages,
+          hasMore: page < totalPages
+        });
+      });
     });
   } catch (error) {
     console.error('Error in getAllArticles:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Server error',
-      message: error.message 
+      message: error.message
     });
   }
 };
@@ -139,7 +182,7 @@ exports.getArticleById = async (req, res) => {
 exports.createArticle = async (req, res) => {
   try {
     console.log('📝 CREATE ARTICLE REQUEST RECEIVED:', req.body);
-    const { section, title, slug, image_url, summary, is_live = false, page = 'Home', subLinks = [] } = req.body;
+    const { section, title, slug, image_url, summary, is_live = false, page = 'Home', isAudioPick = false, isHot = false, subLinks = [] } = req.body;
 
     // Validate required fields
     if (!section || !title) {
@@ -151,8 +194,8 @@ exports.createArticle = async (req, res) => {
     console.log('✅ Data validated, attempting database insert...');
 
     connection.query(
-      'INSERT INTO articles (section, title, slug, image_url, summary, is_live, page, subLinks, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-      [section, title, slug || null, image_url || null, summary || null, is_live ? 1 : 0, page, subLinksJson],
+      'INSERT INTO articles (section, title, slug, image_url, summary, is_live, page, isAudioPick, isHot, subLinks, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+      [section, title, slug || null, image_url || null, summary || null, is_live ? 1 : 0, page, isAudioPick ? 1 : 0, isHot ? 1 : 0, subLinksJson],
       (error, results) => {
         if (error) {
           console.error('❌ DATABASE ERROR:', error);
@@ -187,7 +230,7 @@ exports.createArticle = async (req, res) => {
 exports.updateArticle = async (req, res) => {
   try {
     const { id } = req.params;
-    const { section, title, slug, image_url, summary, is_live, page, subLinks } = req.body;
+    const { section, title, slug, image_url, summary, is_live, page, isAudioPick, isHot, subLinks } = req.body;
 
     const updates = [];
     const values = [];
@@ -219,6 +262,14 @@ exports.updateArticle = async (req, res) => {
     if (page !== undefined) {
       updates.push('page = ?');
       values.push(page);
+    }
+    if (isAudioPick !== undefined) {
+      updates.push('isAudioPick = ?');
+      values.push(isAudioPick ? 1 : 0);
+    }
+    if (isHot !== undefined) {
+      updates.push('isHot = ?');
+      values.push(isHot ? 1 : 0);
     }
     if (subLinks !== undefined) {
       updates.push('subLinks = ?');
