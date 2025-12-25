@@ -19,6 +19,7 @@ const corsOptions = {
     'https://nta-frontend.onrender.com',  // Replace with your NTA frontend Render URL
     'https://nta-admin.onrender.com',     // Replace with your NTA_ADMIN frontend Render URL
     'https://newtimeafrica.com',          // Added production frontend domain
+    'https://admin.newtimeafrica.com',    // Added admin dashboard domain
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
