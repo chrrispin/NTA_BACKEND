@@ -14,6 +14,7 @@ const app = express();
 const corsOptions = {
   origin: [
     'http://localhost:5173',
+    'http://localhost:5174',
     'http://localhost:3000',
     'https://nta-frontend.onrender.com',  // Replace with your NTA frontend Render URL
     'https://nta-admin.onrender.com',     // Replace with your NTA_ADMIN frontend Render URL
