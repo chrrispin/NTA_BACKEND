@@ -1,15 +1,9 @@
 const mysql = require('mysql2/promise');
-const path = require('path');
-const fs = require('fs');
-
-// Load .env only if it exists locally (not on Render)
-if (fs.existsSync(path.join(__dirname, '.env'))) {
-  require('dotenv').config();
-}
 
 /**
  * Initialize database schema and seed data
  * Runs once on server startup
+ * Uses environment variables (set in Render dashboard or local .env)
  */
 async function initDatabase() {
   const connection = await mysql.createConnection({
