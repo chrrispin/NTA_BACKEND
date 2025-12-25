@@ -18,6 +18,7 @@ const corsOptions = {
     'http://localhost:3000',
     'https://nta-frontend.onrender.com',  // Replace with your NTA frontend Render URL
     'https://nta-admin.onrender.com',     // Replace with your NTA_ADMIN frontend Render URL
+    'https://newtimeafrica.com',          // Added production frontend domain
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -25,6 +26,11 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Root route for health/status check
+app.get('/', (req, res) => {
+  res.send('NTA Backend API is running');
+});
 
 // Serve uploaded files statically
 app.use('/uploads', express.static('uploads'));
