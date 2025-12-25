@@ -1,6 +1,10 @@
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
+
+// Only load .env in development
+if (process.env.NODE_ENV !== 'production') {
+  require("dotenv").config();
+}
 
 const initDatabase = require("./init-db");
 const authRoute = require("./routes/auth");

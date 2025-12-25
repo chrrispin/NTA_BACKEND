@@ -1,5 +1,9 @@
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+
+// Only load .env in development
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 
 /**
  * Initialize database schema and seed data
