@@ -143,8 +143,10 @@ exports.getArticleById = async (req, res) => {
           return res.status(500).json({ error: 'Failed to fetch article' });
         }
 
+
         if (results.length === 0) {
-          return res.status(404).json({ error: 'Article not found' });
+          // Return 200 with null for not found, for consistency
+          return res.status(200).json({ article: null });
         }
 
         const article = results[0];
