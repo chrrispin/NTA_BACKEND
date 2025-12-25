@@ -4,9 +4,11 @@ dotenv.config();
 
 
 
-// Prefer CONNECTION_URI (Clever Cloud), fallback to manual credentials for local/dev
+// Prefer MYSQL_ADDON_URI (Clever Cloud), then CONNECTION_URI, then manual credentials
 let connection;
-if (process.env.CONNECTION_URI) {
+if (process.env.MYSQL_ADDON_URI) {
+    connection = mysql.createPool(process.env.MYSQL_ADDON_URI);
+} else if (process.env.CONNECTION_URI) {
     connection = mysql.createPool(process.env.CONNECTION_URI);
 } else {
     connection = mysql.createPool({
