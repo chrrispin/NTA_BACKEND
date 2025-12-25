@@ -12,33 +12,27 @@ if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'staging')
 
 
 
-// Prefer MYSQL_ADDON_URI (Clever Cloud), then CONNECTION_URI, then manual credentials
+
+// Prefer Clever Cloud explicit MySQL addon variables, then URI, then manual credentials
 let connection;
 console.log('DEBUG: NODE_ENV =', process.env.NODE_ENV);
-if (process.env.MYSQL_ADDON_URI) {
-    console.log('DEBUG: MYSQL_ADDON_URI is set. Parsing URI...');
-    // Parse the URI manually for mysql2 compatibility
-    const uri = process.env.MYSQL_ADDON_URI;
-    const match = uri.match(/^mysql:\/\/(.*?):(.*?)@(.*?):(\d+)\/(.*?)$/);
-    if (match) {
-        const [ , user, password, host, port, database ] = match;
-        connection = mysql.createPool({
-            host,
-            user,
-            password,
-            database,
-            port: Number(port),
-            waitForConnections: true,
-            connectionLimit: 10,
-            queueLimit: 0
-        });
-        console.log('DEBUG: Parsed MYSQL_ADDON_URI and created pool.');
-    } else {
-        console.error('ERROR: Could not parse MYSQL_ADDON_URI, falling back to URI string.');
-        connection = mysql.createPool(uri);
-    }
+if (process.env.MYSQL_ADDON_HOST) {
+    connection = mysql.createPool({
+        host: process.env.MYSQL_ADDON_HOST,
+        user: process.env.MYSQL_ADDON_USER,
+        password: process.env.MYSQL_ADDON_PASSWORD,
+        database: process.env.MYSQL_ADDON_DB,
+        port: process.env.MYSQL_ADDON_PORT || 3306,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+    });
+    console.log('DEBUG: Using Clever Cloud MySQL addon variables.');
+} else if (process.env.MYSQL_ADDON_URI) {
+    console.log('DEBUG: Using MYSQL_ADDON_URI.');
+    connection = mysql.createPool(process.env.MYSQL_ADDON_URI);
 } else if (process.env.CONNECTION_URI) {
-    console.log('DEBUG: CONNECTION_URI is set.');
+    console.log('DEBUG: Using CONNECTION_URI.');
     connection = mysql.createPool(process.env.CONNECTION_URI);
 } else {
     console.log('DEBUG: Using manual DB credentials.');
@@ -50,6 +44,18 @@ if (process.env.MYSQL_ADDON_URI) {
         waitForConnections: true,
         connectionLimit: 10,
         queueLimit: 0
+    });
+}
+
+// Optional: Test the connection pool at startup for immediate feedback
+if (connection) {
+    connection.getConnection((err, conn) => {
+        if (err) {
+            console.error('❌ MySQL connection test failed:', err.message);
+        } else {
+            console.log('✅ MySQL connection pool test succeeded.');
+            conn.release();
+        }
     });
 }
 
