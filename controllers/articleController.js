@@ -36,6 +36,8 @@ exports.getAllArticles = async (req, res) => {
       params.push(section);
     }
 
+    console.log('🔍 Querying section:', section);
+
     console.log('🔍 Params:', { page, limit, offset, section });
 
     // First query: Get total count with same filters
@@ -115,6 +117,7 @@ exports.getAllArticles = async (req, res) => {
           totalPages: totalPages,
           hasMore: page < totalPages
         });
+        console.log('🔎 Articles returned:', articles.map(a => ({id: a.id, section: a.section, title: a.title})));
       });
     });
   } catch (error) {
