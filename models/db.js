@@ -4,10 +4,10 @@ dotenv.config();
 
 
 
-// Prefer MYSQL_ADDON_URI (Clever Cloud), fallback to individual vars for local/dev
+// Prefer CONNECTION_URI (Clever Cloud), fallback to manual credentials for local/dev
 let connection;
-if (process.env.MYSQL_ADDON_URI) {
-    connection = mysql.createPool(process.env.MYSQL_ADDON_URI);
+if (process.env.CONNECTION_URI) {
+    connection = mysql.createPool(process.env.CONNECTION_URI);
 } else {
     connection = mysql.createPool({
         host: process.env.DB_HOST,
