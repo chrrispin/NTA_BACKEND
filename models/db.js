@@ -1,6 +1,13 @@
+
 const mysql = require('mysql2');
-const dotenv = require('dotenv');
-dotenv.config();
+// Only load dotenv in local development
+if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'staging') {
+    try {
+        require('dotenv').config();
+    } catch (e) {
+        // ignore if dotenv is not installed
+    }
+}
 
 
 
