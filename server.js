@@ -1,8 +1,10 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
 
-// Only load .env in development
-if (process.env.NODE_ENV !== 'production') {
+// Load .env only if it exists locally (not on Render)
+if (fs.existsSync(path.join(__dirname, '.env'))) {
   require("dotenv").config();
 }
 
