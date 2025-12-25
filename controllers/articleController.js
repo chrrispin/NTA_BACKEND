@@ -108,8 +108,8 @@ exports.getAllArticles = async (req, res) => {
           };
         });
 
-        // Return response with metadata
-        res.json({
+        // Always return 200 with empty array if no articles found
+        res.status(200).json({
           articles: articles,
           page: page,
           limit: limit,
