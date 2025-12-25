@@ -15,12 +15,8 @@ async function initDatabase() {
   try {
     console.log('🔧 Initializing database...');
 
-    // Create database if not exists
-    await connection.query('CREATE DATABASE IF NOT EXISTS nta_database');
-    console.log('✅ Database ensured');
-
-    // Use the database
-    await connection.query('USE nta_database');
+    // Use the database (already exists on Clever Cloud)
+    await connection.query(`USE ${process.env.DB_NAME}`);
 
     // Create articles table
     await connection.query(`
