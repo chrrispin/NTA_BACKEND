@@ -24,6 +24,9 @@ const validatePaginationParams = (req, res, next) => {
 // Get all articles with pagination and optional filtering by section
 router.get("/", validatePaginationParams, articleController.getAllArticles);
 
+// Increment views for an article
+router.post("/:id/view", articleController.incrementViews);
+
 // Get single article by ID
 router.get("/:id", articleController.getArticleById);
 

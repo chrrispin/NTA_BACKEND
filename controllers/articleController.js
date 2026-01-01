@@ -102,6 +102,9 @@ exports.getAllArticles = async (req, res) => {
             summary: article.summary,
             is_live: article.is_live,
             page: article.page,
+            views: article.views !== null && article.views !== undefined ? article.views : 0,
+            created_at: article.created_at || new Date().toISOString(),
+            updated_at: article.updated_at || new Date().toISOString(),
             isAudioPick: article.isAudioPick || false,
             isHot: article.isHot || false,
             subLinks: parsedSubLinks
@@ -173,6 +176,11 @@ exports.getArticleById = async (req, res) => {
           summary: article.summary,
           is_live: article.is_live,
           page: article.page,
+          views: article.views !== null && article.views !== undefined ? article.views : 0,
+          created_at: article.created_at || new Date().toISOString(),
+          updated_at: article.updated_at || new Date().toISOString(),
+          isAudioPick: article.isAudioPick || false,
+          isHot: article.isHot || false,
           subLinks: parsedSubLinks
         });
       }
@@ -318,6 +326,33 @@ exports.deleteArticle = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in deleteArticle:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// Increment views for an article
+exports.incrementViews = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    connection.query(
+      'UPDATE articles SET views = views + 1 WHERE id = ?',
+      [id],
+      (error, results) => {
+        if (error) {
+          console.error('Database update error:', error);
+          return res.status(500).json({ error: 'Failed to increment views' });
+        }
+
+        if (results.affectedRows === 0) {
+          return res.status(404).json({ error: 'Article not found' });
+        }
+
+        res.json({ message: 'Views incremented', views: results.affectedRows });
+      }
+    );
+  } catch (error) {
+    console.error('Error in incrementViews:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
