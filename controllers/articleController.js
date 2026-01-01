@@ -100,6 +100,7 @@ exports.getAllArticles = async (req, res) => {
             slug: article.slug,
             image_url: article.image_url,
             summary: article.summary,
+            content: article.content || null,
             is_live: article.is_live,
             page: article.page,
             views: article.views !== null && article.views !== undefined ? article.views : 0,
@@ -174,6 +175,7 @@ exports.getArticleById = async (req, res) => {
           slug: article.slug,
           image_url: article.image_url,
           summary: article.summary,
+          content: article.content || null,
           is_live: article.is_live,
           page: article.page,
           views: article.views !== null && article.views !== undefined ? article.views : 0,
@@ -195,7 +197,7 @@ exports.getArticleById = async (req, res) => {
 exports.createArticle = async (req, res) => {
   try {
     console.log('📝 CREATE ARTICLE REQUEST RECEIVED:', req.body);
-    const { section, title, slug, image_url, summary, is_live = false, page = 'Home', isAudioPick = false, isHot = false, subLinks = [] } = req.body;
+    const { section, title, slug, image_url, summary, content, is_live = false, page = 'Home', isAudioPick = false, isHot = false, subLinks = [] } = req.body;
 
     // Validate required fields
     if (!section || !title) {
@@ -207,8 +209,8 @@ exports.createArticle = async (req, res) => {
     console.log('✅ Data validated, attempting database insert...');
 
     connection.query(
-      'INSERT INTO articles (section, title, slug, image_url, summary, is_live, page, isAudioPick, isHot, subLinks, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-      [section, title, slug || null, image_url || null, summary || null, is_live ? 1 : 0, page, isAudioPick ? 1 : 0, isHot ? 1 : 0, subLinksJson],
+      'INSERT INTO articles (section, title, slug, image_url, summary, content, is_live, page, isAudioPick, isHot, subLinks, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+      [section, title, slug || null, image_url || null, summary || null, content || null, is_live ? 1 : 0, page, isAudioPick ? 1 : 0, isHot ? 1 : 0, subLinksJson],
       (error, results) => {
         if (error) {
           console.error('❌ DATABASE ERROR:', error);
@@ -243,7 +245,7 @@ exports.createArticle = async (req, res) => {
 exports.updateArticle = async (req, res) => {
   try {
     const { id } = req.params;
-    const { section, title, slug, image_url, summary, is_live, page, isAudioPick, isHot, subLinks } = req.body;
+    const { section, title, slug, image_url, summary, content, is_live, page, isAudioPick, isHot, subLinks } = req.body;
 
     const updates = [];
     const values = [];
@@ -267,6 +269,10 @@ exports.updateArticle = async (req, res) => {
     if (summary !== undefined) {
       updates.push('summary = ?');
       values.push(summary);
+    }
+    if (content !== undefined) {
+      updates.push('content = ?');
+      values.push(content);
     }
     if (is_live !== undefined) {
       updates.push('is_live = ?');
