@@ -93,6 +93,19 @@ exports.getAllArticles = async (req, res) => {
             }
           }
 
+          let parsedMedia = [];
+          if (article.media && typeof article.media === 'string') {
+            try {
+              const trimmed = article.media.trim();
+              if (trimmed) {
+                parsedMedia = JSON.parse(trimmed);
+              }
+            } catch (e) {
+              console.warn('⚠️ media JSON parse failed for article id', article.id, '->', e.message);
+              parsedMedia = [];
+            }
+          }
+
           return {
             id: article.id,
             section: article.section,
@@ -108,7 +121,8 @@ exports.getAllArticles = async (req, res) => {
             updated_at: article.updated_at || new Date().toISOString(),
             isAudioPick: article.isAudioPick || false,
             isHot: article.isHot || false,
-            subLinks: parsedSubLinks
+            subLinks: parsedSubLinks,
+            media: parsedMedia
           };
         });
 
@@ -168,6 +182,19 @@ exports.getArticleById = async (req, res) => {
           }
         }
 
+        let parsedMedia = [];
+        if (article.media && typeof article.media === 'string') {
+          try {
+            const trimmed = article.media.trim();
+            if (trimmed) {
+              parsedMedia = JSON.parse(trimmed);
+            }
+          } catch (e) {
+            console.warn('⚠️ media JSON parse failed for article id', article.id, '->', e.message);
+            parsedMedia = [];
+          }
+        }
+
         res.json({
           id: article.id,
           section: article.section,
@@ -183,7 +210,8 @@ exports.getArticleById = async (req, res) => {
           updated_at: article.updated_at || new Date().toISOString(),
           isAudioPick: article.isAudioPick || false,
           isHot: article.isHot || false,
-          subLinks: parsedSubLinks
+          subLinks: parsedSubLinks,
+          media: parsedMedia
         });
       }
     );
@@ -197,7 +225,7 @@ exports.getArticleById = async (req, res) => {
 exports.createArticle = async (req, res) => {
   try {
     console.log('📝 CREATE ARTICLE REQUEST RECEIVED:', req.body);
-    const { section, title, slug, image_url, summary, content, is_live = false, page = 'Home', isAudioPick = false, isHot = false, subLinks = [] } = req.body;
+    const { section, title, slug, image_url, summary, content, is_live = false, page = 'Home', isAudioPick = false, isHot = false, subLinks = [], media = [] } = req.body;
 
     // Validate required fields
     if (!section || !title) {
@@ -206,11 +234,12 @@ exports.createArticle = async (req, res) => {
     }
 
     const subLinksJson = JSON.stringify(subLinks);
+    const mediaJson = JSON.stringify(media);
     console.log('✅ Data validated, attempting database insert...');
 
     connection.query(
-      'INSERT INTO articles (section, title, slug, image_url, summary, content, is_live, page, isAudioPick, isHot, subLinks, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-      [section, title, slug || null, image_url || null, summary || null, content || null, is_live ? 1 : 0, page, isAudioPick ? 1 : 0, isHot ? 1 : 0, subLinksJson],
+      'INSERT INTO articles (section, title, slug, image_url, summary, content, is_live, page, isAudioPick, isHot, subLinks, media, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+      [section, title, slug || null, image_url || null, summary || null, content || null, is_live ? 1 : 0, page, isAudioPick ? 1 : 0, isHot ? 1 : 0, subLinksJson, mediaJson],
       (error, results) => {
         if (error) {
           console.error('❌ DATABASE ERROR:', error);
@@ -245,7 +274,7 @@ exports.createArticle = async (req, res) => {
 exports.updateArticle = async (req, res) => {
   try {
     const { id } = req.params;
-    const { section, title, slug, image_url, summary, content, is_live, page, isAudioPick, isHot, subLinks } = req.body;
+    const { section, title, slug, image_url, summary, content, is_live, page, isAudioPick, isHot, subLinks, media } = req.body;
 
     const updates = [];
     const values = [];
@@ -293,6 +322,10 @@ exports.updateArticle = async (req, res) => {
     if (subLinks !== undefined) {
       updates.push('subLinks = ?');
       values.push(JSON.stringify(subLinks));
+    }
+    if (media !== undefined) {
+      updates.push('media = ?');
+      values.push(JSON.stringify(media));
     }
 
     if (updates.length === 0) {
