@@ -26,6 +26,9 @@ router.get("/", validatePaginationParams, articleController.getAllArticles);
 // Increment views for an article
 router.post("/:id/view", articleController.incrementViews);
 
+// Get article by slug (must come before /:id to match first)
+router.get("/slug/:slug", articleController.getArticleBySlug);
+
 // Get single article by ID
 router.get("/:id", articleController.getArticleById);
 

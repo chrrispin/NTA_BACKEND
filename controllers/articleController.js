@@ -147,6 +147,78 @@ exports.getAllArticles = async (req, res) => {
   }
 };
 
+// Get article by slug
+exports.getArticleBySlug = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    connection.query(
+      'SELECT * FROM articles WHERE slug = ?',
+      [slug],
+      (error, results) => {
+        if (error) {
+          console.error('Database query error:', error);
+          return res.status(500).json({ error: 'Failed to fetch article' });
+        }
+
+        if (results.length === 0) {
+          return res.status(404).json({ error: 'Article not found' });
+        }
+
+        const article = results[0];
+
+        let parsedSubLinks = [];
+        if (article.subLinks && typeof article.subLinks === 'string') {
+          try {
+            const trimmed = article.subLinks.trim();
+            if (trimmed) {
+              parsedSubLinks = JSON.parse(trimmed);
+            }
+          } catch (e) {
+            console.warn('⚠️ subLinks JSON parse failed for article id', article.id, '->', e.message);
+            parsedSubLinks = [];
+          }
+        }
+
+        let parsedMedia = [];
+        if (article.media && typeof article.media === 'string') {
+          try {
+            const trimmed = article.media.trim();
+            if (trimmed) {
+              parsedMedia = JSON.parse(trimmed);
+            }
+          } catch (e) {
+            console.warn('⚠️ media JSON parse failed for article id', article.id, '->', e.message);
+            parsedMedia = [];
+          }
+        }
+
+        res.json({
+          id: article.id,
+          section: article.section,
+          title: article.title,
+          slug: article.slug,
+          image_url: article.image_url,
+          summary: article.summary,
+          content: article.content || null,
+          is_live: article.is_live,
+          page: article.page,
+          views: article.views !== null && article.views !== undefined ? article.views : 0,
+          created_at: article.created_at || new Date().toISOString(),
+          updated_at: article.updated_at || new Date().toISOString(),
+          isAudioPick: article.isAudioPick || false,
+          isHot: article.isHot || false,
+          subLinks: parsedSubLinks,
+          media: parsedMedia
+        });
+      }
+    );
+  } catch (error) {
+    console.error('Error in getArticleBySlug:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 // Get single article by ID
 exports.getArticleById = async (req, res) => {
   try {
