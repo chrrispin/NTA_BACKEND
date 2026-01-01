@@ -1,8 +1,7 @@
 // example: routes/articles.js
 const express = require("express");
 const router = express.Router();
-const articleController = require("../controllers/articleController");
-
+const articleController = require("../controllers/articleController");const connection = require('../models/db');
 // Middleware to validate and sanitize pagination params
 const validatePaginationParams = (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
@@ -38,5 +37,30 @@ router.put("/:id", articleController.updateArticle);
 
 // Delete article
 router.delete("/:id", articleController.deleteArticle);
+
+// Migration endpoint - call once to add content column
+router.post("/migrate/add-content-column", (req, res) => {
+  // First check if column exists
+  connection.query('SHOW COLUMNS FROM articles LIKE "content"', (error, results) => {
+    if (error) {
+      console.error('Migration check error:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    
+    if (results && results.length > 0) {
+      return res.json({ success: true, message: 'Content column already exists' });
+    }
+    
+    // Column doesn't exist, add it
+    const sql = 'ALTER TABLE articles ADD COLUMN content LONGTEXT AFTER summary';
+    connection.query(sql, (error) => {
+      if (error) {
+        console.error('Migration error:', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      res.json({ success: true, message: 'Content column added successfully' });
+    });
+  });
+});
 
 module.exports = router; // ✅ must export router
