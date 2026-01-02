@@ -189,8 +189,13 @@ exports.verifyToken = (req, res, next) => {
 exports.createUser = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
+    const profilePicture = req.file ? `/uploads/profiles/${req.file.filename}` : null;
 
     if (!name || !email || !password || !role) {
+      if (req.file) {
+        const fs = require('fs');
+        fs.unlinkSync(req.file.path); // Delete uploaded file if validation fails
+      }
       return res.status(400).json({ 
         success: false, 
         message: 'Name, email, password, and role are required' 
@@ -198,6 +203,10 @@ exports.createUser = async (req, res) => {
     }
 
     if (password.length < 6) {
+      if (req.file) {
+        const fs = require('fs');
+        fs.unlinkSync(req.file.path);
+      }
       return res.status(400).json({ 
         success: false, 
         message: 'Password must be at least 6 characters' 
@@ -210,6 +219,10 @@ exports.createUser = async (req, res) => {
       [email],
       async (error, results) => {
         if (error) {
+          if (req.file) {
+            const fs = require('fs');
+            fs.unlinkSync(req.file.path);
+          }
           console.error('Database error:', error);
           return res.status(500).json({ 
             success: false, 
@@ -218,6 +231,10 @@ exports.createUser = async (req, res) => {
         }
 
         if (results.length > 0) {
+          if (req.file) {
+            const fs = require('fs');
+            fs.unlinkSync(req.file.path);
+          }
           return res.status(400).json({ 
             success: false, 
             message: 'Email already registered' 
@@ -229,10 +246,14 @@ exports.createUser = async (req, res) => {
 
         // Insert new user
         connection.query(
-          'INSERT INTO users (name, email, password, role, created_at) VALUES (?, ?, ?, ?, NOW())',
-          [name, email, hashedPassword, role],
+          'INSERT INTO users (name, email, password, role, profile_picture, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
+          [name, email, hashedPassword, role, profilePicture],
           (insertError, insertResults) => {
             if (insertError) {
+              if (req.file) {
+                const fs = require('fs');
+                fs.unlinkSync(req.file.path);
+              }
               console.error('Insert error:', insertError);
               return res.status(500).json({ 
                 success: false, 
@@ -247,7 +268,8 @@ exports.createUser = async (req, res) => {
                 id: insertResults.insertId,
                 name,
                 email,
-                role
+                role,
+                profile_picture: profilePicture
               }
             });
           }
@@ -255,6 +277,10 @@ exports.createUser = async (req, res) => {
       }
     );
   } catch (error) {
+    if (req.file) {
+      const fs = require('fs');
+      fs.unlinkSync(req.file.path);
+    }
     console.error('Error:', error);
     res.status(500).json({ 
       success: false, 
@@ -267,7 +293,7 @@ exports.createUser = async (req, res) => {
 exports.getAllUsers = (req, res) => {
   try {
     connection.query(
-      'SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC',
+      'SELECT id, name, email, role, profile_picture, created_at FROM users ORDER BY created_at DESC',
       (error, results) => {
         if (error) {
           console.error('Database error:', error);
@@ -298,33 +324,103 @@ exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, role } = req.body;
+    const profilePicture = req.file ? `/uploads/profiles/${req.file.filename}` : null;
 
     if (!name || !email || !role) {
+      if (req.file) {
+        const fs = require('fs');
+        fs.unlinkSync(req.file.path);
+      }
       return res.status(400).json({ 
         success: false, 
         message: 'Name, email, and role are required' 
       });
     }
 
-    connection.query(
-      'UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?',
-      [name, email, role, id],
-      (updateError) => {
-        if (updateError) {
-          console.error('Update error:', updateError);
-          return res.status(500).json({ 
-            success: false, 
-            message: 'Failed to update user' 
+    // If updating profile picture, we need to get the old one first to delete it
+    if (profilePicture) {
+      connection.query(
+        'SELECT profile_picture FROM users WHERE id = ?',
+        [id],
+        (selectError, selectResults) => {
+          if (selectError) {
+            if (req.file) {
+              const fs = require('fs');
+              fs.unlinkSync(req.file.path);
+            }
+            console.error('Select error:', selectError);
+            return res.status(500).json({ 
+              success: false, 
+              message: 'Failed to update user' 
+            });
+          }
+
+          const oldPicture = selectResults[0]?.profile_picture;
+
+          connection.query(
+            'UPDATE users SET name = ?, email = ?, role = ?, profile_picture = ? WHERE id = ?',
+            [name, email, role, profilePicture, id],
+            (updateError) => {
+              if (updateError) {
+                if (req.file) {
+                  const fs = require('fs');
+                  fs.unlinkSync(req.file.path);
+                }
+                console.error('Update error:', updateError);
+                return res.status(500).json({ 
+                  success: false, 
+                  message: 'Failed to update user' 
+                });
+              }
+
+              // Delete old profile picture if it exists
+              if (oldPicture) {
+                const path = require('path');
+                const fs = require('fs');
+                const oldPicturePath = path.join(__dirname, '../uploads/profiles/', path.basename(oldPicture));
+                if (fs.existsSync(oldPicturePath)) {
+                  fs.unlinkSync(oldPicturePath);
+                }
+              }
+
+              res.json({
+                success: true,
+                message: 'User updated successfully',
+                data: {
+                  id,
+                  profile_picture: profilePicture
+                }
+              });
+            }
+          );
+        }
+      );
+    } else {
+      // No new profile picture, just update other fields
+      connection.query(
+        'UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?',
+        [name, email, role, id],
+        (updateError) => {
+          if (updateError) {
+            console.error('Update error:', updateError);
+            return res.status(500).json({ 
+              success: false, 
+              message: 'Failed to update user' 
+            });
+          }
+
+          res.json({
+            success: true,
+            message: 'User updated successfully'
           });
         }
-
-        res.json({
-          success: true,
-          message: 'User updated successfully'
-        });
-      }
-    );
+      );
+    }
   } catch (error) {
+    if (req.file) {
+      const fs = require('fs');
+      fs.unlinkSync(req.file.path);
+    }
     console.error('Error:', error);
     res.status(500).json({ 
       success: false, 
