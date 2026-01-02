@@ -184,3 +184,105 @@ exports.verifyToken = (req, res, next) => {
     });
   }
 };
+
+// Get all users (admin only)
+exports.getAllUsers = (req, res) => {
+  try {
+    connection.query(
+      'SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC',
+      (error, results) => {
+        if (error) {
+          console.error('Database error:', error);
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch users' 
+          });
+        }
+
+        res.json({
+          success: true,
+          data: results,
+          message: 'Users fetched successfully'
+        });
+      }
+    );
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
+  }
+};
+
+// Update user (admin only)
+exports.updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, role } = req.body;
+
+    if (!name || !email || !role) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Name, email, and role are required' 
+      });
+    }
+
+    connection.query(
+      'UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?',
+      [name, email, role, id],
+      (updateError) => {
+        if (updateError) {
+          console.error('Update error:', updateError);
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Failed to update user' 
+          });
+        }
+
+        res.json({
+          success: true,
+          message: 'User updated successfully'
+        });
+      }
+    );
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
+  }
+};
+
+// Delete user (admin only)
+exports.deleteUser = (req, res) => {
+  try {
+    const { id } = req.params;
+
+    connection.query(
+      'DELETE FROM users WHERE id = ?',
+      [id],
+      (deleteError) => {
+        if (deleteError) {
+          console.error('Delete error:', deleteError);
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Failed to delete user' 
+          });
+        }
+
+        res.json({
+          success: true,
+          message: 'User deleted successfully'
+        });
+      }
+    );
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
+  }
+};
