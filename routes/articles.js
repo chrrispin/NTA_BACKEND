@@ -1,7 +1,10 @@
 // example: routes/articles.js
 const express = require("express");
 const router = express.Router();
-const articleController = require("../controllers/articleController");const connection = require('../models/db');
+const articleController = require("../controllers/articleController");
+const workflowController = require("../controllers/workflowController");
+const { verifyToken } = require("../controllers/authController");
+const connection = require('../models/db');
 // Middleware to validate and sanitize pagination params
 const validatePaginationParams = (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
@@ -65,5 +68,21 @@ router.post("/migrate/add-content-column", (req, res) => {
     });
   });
 });
+
+// WORKFLOW ROUTES (Protected - requires authentication)
+// Get articles based on user role
+router.get("/workflow/my-articles", verifyToken, workflowController.getArticlesByRole);
+
+// Editor: Submit article for review
+router.post("/:id/submit-for-review", verifyToken, workflowController.submitForReview);
+
+// Admin/Super Admin: Approve article
+router.post("/:id/approve", verifyToken, workflowController.approveArticle);
+
+// Admin/Super Admin: Reject article
+router.post("/:id/reject", verifyToken, workflowController.rejectArticle);
+
+// Super Admin: Publish approved article
+router.post("/:id/publish", verifyToken, workflowController.publishArticle);
 
 module.exports = router; // ✅ must export router
