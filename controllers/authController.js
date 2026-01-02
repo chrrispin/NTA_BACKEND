@@ -72,7 +72,13 @@ exports.signup = async (req, res) => {
               message: 'User created successfully',
               data: {
                 token,
-                user: { id: insertResults.insertId, name, email, role: 'admin' }
+                user: { 
+                  id: insertResults.insertId, 
+                  name, 
+                  email, 
+                  role: 'admin',
+                  profile_picture: null
+                }
               }
             });
           }
@@ -147,7 +153,8 @@ exports.login = async (req, res) => {
               id: user.id, 
               name: user.name, 
               email: user.email, 
-              role: user.role 
+              role: user.role,
+              profile_picture: user.profile_picture
             }
           }
         });
