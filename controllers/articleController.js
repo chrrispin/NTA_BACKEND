@@ -115,6 +115,7 @@ exports.getAllArticles = async (req, res) => {
             summary: article.summary,
             content: article.content || null,
             is_live: article.is_live,
+            status: article.status || (article.is_live ? 'published' : 'draft'),
             page: article.page,
             views: article.views !== null && article.views !== undefined ? article.views : 0,
             created_at: article.created_at || new Date().toISOString(),
@@ -122,7 +123,13 @@ exports.getAllArticles = async (req, res) => {
             isAudioPick: article.isAudioPick || false,
             isHot: article.isHot || false,
             subLinks: parsedSubLinks,
-            media: parsedMedia
+            media: parsedMedia,
+            submitted_by: article.submitted_by,
+            submitted_at: article.submitted_at,
+            approved_by: article.approved_by,
+            approved_at: article.approved_at,
+            rejection_reason: article.rejection_reason,
+            current_reviewer_role: article.current_reviewer_role
           };
         });
 
@@ -307,11 +314,18 @@ exports.createArticle = async (req, res) => {
 
     const subLinksJson = JSON.stringify(subLinks);
     const mediaJson = JSON.stringify(media);
-    console.log('✅ Data validated, attempting database insert...');
+    
+    // Get user ID from token if available
+    const userId = req.user ? req.user.id : null;
+    
+    // Set workflow status based on is_live
+    const workflowStatus = is_live ? 'published' : 'draft';
+    
+    console.log('✅ Data validated, attempting database insert with workflow status:', workflowStatus);
 
     connection.query(
-      'INSERT INTO articles (section, title, slug, image_url, summary, content, is_live, page, isAudioPick, isHot, subLinks, media, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-      [section, title, slug || null, image_url || null, summary || null, content || null, is_live ? 1 : 0, page, isAudioPick ? 1 : 0, isHot ? 1 : 0, subLinksJson, mediaJson],
+      'INSERT INTO articles (section, title, slug, image_url, summary, content, is_live, page, isAudioPick, isHot, subLinks, media, status, submitted_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+      [section, title, slug || null, image_url || null, summary || null, content || null, is_live ? 1 : 0, page, isAudioPick ? 1 : 0, isHot ? 1 : 0, subLinksJson, mediaJson, workflowStatus, userId],
       (error, results) => {
         if (error) {
           console.error('❌ DATABASE ERROR:', error);
@@ -332,6 +346,7 @@ exports.createArticle = async (req, res) => {
           summary: summary || null,
           is_live,
           page: page || 'Home',
+          status: workflowStatus,
           subLinks
         });
       }

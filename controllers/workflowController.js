@@ -106,21 +106,17 @@ exports.approveArticle = (req, res) => {
     const { userId, role } = req.user;
     const { notes } = req.body;
 
-    // Only admin and super_admin can approve
-    if (role !== 'admin' && role !== 'super_admin') {
+    // Only admin can approve
+    if (role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Only admins can approve articles',
       });
     }
 
-    // Determine next status
-    const nextStatus = role === 'admin' ? 'pending_super_admin_review' : 'approved';
-    const nextReviewerRole = role === 'admin' ? 'super_admin' : null;
-
     connection.query(
-      'UPDATE articles SET status = ?, approved_by = ?, approved_at = NOW(), current_reviewer_role = ? WHERE id = ?',
-      [nextStatus, userId, nextReviewerRole, id],
+      'UPDATE articles SET status = "published", is_live = 1, approved_by = ?, approved_at = NOW(), current_reviewer_role = NULL WHERE id = ? AND status = "pending_admin_review"',
+      [userId, id],
       (error, results) => {
         if (error) {
           console.error('Database error:', error);
@@ -133,13 +129,13 @@ exports.approveArticle = (req, res) => {
         if (results.affectedRows === 0) {
           return res.status(404).json({
             success: false,
-            message: 'Article not found',
+            message: 'Article not found or not in pending review status',
           });
         }
 
         res.json({
           success: true,
-          message: `Article approved${nextStatus === 'approved' ? ' and ready to publish' : ' and sent to super admin'}`,
+          message: 'Article approved and published successfully',
         });
       }
     );
@@ -208,22 +204,22 @@ exports.rejectArticle = (req, res) => {
   }
 };
 
-// Super Admin: Publish approved article
+// Publish article (admin publishes directly after approval)
 exports.publishArticle = (req, res) => {
   try {
     const { id } = req.params;
     const { role } = req.user;
 
-    // Only super_admin can publish
-    if (role !== 'super_admin') {
+    // Only admin can publish
+    if (role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Only super admins can publish articles',
+        message: 'Only admins can publish articles',
       });
     }
 
     connection.query(
-      'UPDATE articles SET status = "published", is_live = 1, current_reviewer_role = NULL WHERE id = ? AND status = "approved"',
+      'UPDATE articles SET status = "published", is_live = 1, current_reviewer_role = NULL WHERE id = ?',
       [id],
       (error, results) => {
         if (error) {
@@ -237,7 +233,7 @@ exports.publishArticle = (req, res) => {
         if (results.affectedRows === 0) {
           return res.status(404).json({
             success: false,
-            message: 'Article not found or not in approved status',
+            message: 'Article not found',
           });
         }
 
