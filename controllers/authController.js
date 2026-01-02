@@ -185,6 +185,84 @@ exports.verifyToken = (req, res, next) => {
   }
 };
 
+// Create new user (admin only)
+exports.createUser = async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Name, email, password, and role are required' 
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be at least 6 characters' 
+      });
+    }
+
+    // Check if user already exists
+    connection.query(
+      'SELECT * FROM users WHERE email = ?',
+      [email],
+      async (error, results) => {
+        if (error) {
+          console.error('Database error:', error);
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Database error' 
+          });
+        }
+
+        if (results.length > 0) {
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Email already registered' 
+          });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Insert new user
+        connection.query(
+          'INSERT INTO users (name, email, password, role, created_at) VALUES (?, ?, ?, ?, NOW())',
+          [name, email, hashedPassword, role],
+          (insertError, insertResults) => {
+            if (insertError) {
+              console.error('Insert error:', insertError);
+              return res.status(500).json({ 
+                success: false, 
+                message: 'Failed to create user' 
+              });
+            }
+
+            res.status(201).json({
+              success: true,
+              message: 'User created successfully',
+              data: {
+                id: insertResults.insertId,
+                name,
+                email,
+                role
+              }
+            });
+          }
+        );
+      }
+    );
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
+  }
+};
+
 // Get all users (admin only)
 exports.getAllUsers = (req, res) => {
   try {

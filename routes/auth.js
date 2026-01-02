@@ -10,6 +10,7 @@ router.post("/login", authController.login);
 
 // User management routes (protected)
 router.get("/users", authController.verifyToken, authController.getAllUsers);
+router.post("/users", authController.verifyToken, authController.createUser);
 router.put("/users/:id", authController.verifyToken, authController.updateUser);
 router.delete("/users/:id", authController.verifyToken, authController.deleteUser);
 
