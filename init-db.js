@@ -6,17 +6,38 @@ const mysql = require('mysql2/promise');
  * Uses environment variables (set in Render dashboard or local .env)
  */
 async function initDatabase() {
-  const connection = await mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-  });
+  // Support both Clever Cloud and manual DB credentials
+  const dbConfig = {
+    host: process.env.MYSQL_ADDON_HOST || process.env.DB_HOST,
+    user: process.env.MYSQL_ADDON_USER || process.env.DB_USER,
+    password: process.env.MYSQL_ADDON_PASSWORD || process.env.DB_PASSWORD,
+    port: process.env.MYSQL_ADDON_PORT || 3306,
+  };
+
+  const connection = await mysql.createConnection(dbConfig);
 
   try {
     console.log('🔧 Initializing database...');
 
     // Use the database (already exists on Clever Cloud)
-    await connection.query(`USE ${process.env.DB_NAME}`);
+    const dbName = process.env.MYSQL_ADDON_DB || process.env.DB_NAME;
+    await connection.query(`USE ${dbName}`);
+
+    // Create users table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'admin',
+        profile_picture VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_email (email)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    console.log('✅ Users table ensured');
 
     // Create articles table
     await connection.query(`
@@ -35,11 +56,22 @@ async function initDatabase() {
         isAudioPick BOOLEAN DEFAULT FALSE,
         isHot BOOLEAN DEFAULT FALSE,
         views INT DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'draft',
+        author VARCHAR(255),
+        assigned_writer INT,
+        assigned_editor INT,
+        writer_submitted_at TIMESTAMP NULL,
+        editor_approved_at TIMESTAMP NULL,
+        admin_approved_at TIMESTAMP NULL,
+        rejection_reason TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_section (section),
         INDEX idx_page (page),
-        INDEX idx_created_at (created_at)
+        INDEX idx_status (status),
+        INDEX idx_created_at (created_at),
+        INDEX idx_assigned_writer (assigned_writer),
+        INDEX idx_assigned_editor (assigned_editor)
       )
     `);
     console.log('✅ Articles table ensured');
