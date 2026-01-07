@@ -1,4 +1,5 @@
 const mysql = require('mysql2/promise');
+const bcrypt = require('bcryptjs');
 
 /**
  * Initialize database schema and seed data
@@ -97,6 +98,28 @@ async function initDatabase() {
       console.log(`✅ Seeded ${sampleArticles.length} sample articles`);
     } else {
       console.log(`✅ Articles table already has ${rows[0].count} records`);
+    }
+
+    // Check if users table has data; if empty, create default admin user
+    const [userRows] = await connection.query('SELECT COUNT(*) as count FROM users');
+    if (userRows[0].count === 0) {
+      const defaultUsers = [
+        { name: 'Admin User', email: 'admin@newtimeafrica.com', password: 'Admin123!', role: 'admin' },
+        { name: 'Super Admin', email: 'superadmin@newtimeafrica.com', password: 'SuperAdmin123!', role: 'super_admin' },
+      ];
+
+      for (const user of defaultUsers) {
+        const hashedPassword = await bcrypt.hash(user.password, 10);
+        await connection.query(
+          'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+          [user.name, user.email, hashedPassword, user.role]
+        );
+      }
+      console.log(`✅ Seeded ${defaultUsers.length} default admin users`);
+      console.log('   - admin@newtimeafrica.com / Admin123!');
+      console.log('   - superadmin@newtimeafrica.com / SuperAdmin123!');
+    } else {
+      console.log(`✅ Users table already has ${userRows[0].count} records`);
     }
 
     console.log('🎉 Database initialized successfully!');
