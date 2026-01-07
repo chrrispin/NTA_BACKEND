@@ -28,6 +28,16 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Debug logger for request-access route to help diagnose JSON parse errors
+app.use((req, res, next) => {
+  if (req.method === 'POST' && req.path === '/api/auth/request-access') {
+    console.log('--- Incoming request to /api/auth/request-access ---');
+    console.log('Content-Type:', req.headers['content-type']);
+    console.log('Raw body (may be undefined if not JSON):', req.rawBody);
+  }
+  next();
+});
+
 // Root route for health/status check
 app.get('/', (req, res) => {
   res.send('NTA Backend API is running');
@@ -43,12 +53,22 @@ app.use("/api/uploads", uploadsRoute);
 
 const PORT = process.env.PORT || 5000;
 
-// Initialize database before starting server
-initDatabase()
-  .then(() => {
-    app.listen(PORT, '0.0.0.0', () => console.log(`✅ Server running on port ${PORT}`));
-  })
-  .catch((error) => {
-    console.error('❌ Failed to start server:', error.message);
-    process.exit(1);
-  });
+const startServer = () => {
+  app.listen(PORT, '0.0.0.0', () => console.log(`✅ Server running on port ${PORT}`));
+};
+
+// Allow skipping DB init for local debugging when SKIP_DB_INIT=true
+if (process.env.SKIP_DB_INIT === 'true') {
+  console.warn('⚠️ SKIP_DB_INIT=true — starting server without initializing database (debug mode)');
+  startServer();
+} else {
+  // Initialize database before starting server
+  initDatabase()
+    .then(() => {
+      startServer();
+    })
+    .catch((error) => {
+      console.error('❌ Failed to start server:', error.message);
+      process.exit(1);
+    });
+}

@@ -467,3 +467,46 @@ exports.deleteUser = (req, res) => {
     });
   }
 };
+
+// Request access (public)
+exports.requestAccess = (req, res) => {
+  try {
+    const { name, email, message } = req.body;
+
+    if (!name || !email) {
+      return res.status(400).json({ success: false, message: 'Name and email are required' });
+    }
+
+    // Ensure access_requests table exists then insert
+    const createTableSql = `CREATE TABLE IF NOT EXISTS access_requests (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      message TEXT,
+      created_at DATETIME DEFAULT NOW()
+    )`;
+
+    connection.query(createTableSql, (ctErr) => {
+      if (ctErr) {
+        console.error('Failed to ensure access_requests table:', ctErr);
+        return res.status(500).json({ success: false, message: 'Server error' });
+      }
+
+      connection.query(
+        'INSERT INTO access_requests (name, email, message, created_at) VALUES (?, ?, ?, NOW())',
+        [name, email, message || null],
+        (insertErr, insertResults) => {
+          if (insertErr) {
+            console.error('Insert access request error:', insertErr);
+            return res.status(500).json({ success: false, message: 'Failed to submit request' });
+          }
+
+          res.json({ success: true, message: 'Request submitted successfully' });
+        }
+      );
+    });
+  } catch (error) {
+    console.error('requestAccess error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

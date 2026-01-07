@@ -45,6 +45,7 @@ router.post("/admin/signup", authController.signup);
 router.post("/admin/login", authController.login);
 router.post("/signup", authController.signup);
 router.post("/login", authController.login);
+router.post('/request-access', authController.requestAccess);
 
 // User management routes (protected)
 router.get("/users", authController.verifyToken, authController.getAllUsers);
